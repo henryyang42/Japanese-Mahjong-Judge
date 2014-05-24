@@ -1,0 +1,121 @@
+<html>
+
+<head>
+	<title></title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+	<!-- Latest compiled and minified JavaScript -->
+	<script src="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+
+	<style type="text/css">
+	.tile, .display_tile{
+		width: 80px;
+
+	}
+	</style>
+	<script src="mahjong_judge.js"></script>
+	<script src="mahjong_utility.js"></script>
+	<script type="text/javascript">
+	$(function() {
+		var ind, arr, hand;
+		$("#get_card").click(function() {
+			if (!hand)
+				return;
+			if (hand.length == 13 && (136 - ind) > 0) {
+				hand.push(arr[136 - ind]);
+				ind++;
+				show();
+			}
+		});
+
+		function show() {
+			if (hand.length == 13)
+				hand.sort(function(a, b) {
+					return a - b;
+				});
+			var html = "";
+			var img_name = generate_img_name(hand);
+			for (var i = 0; i < img_name.length; i++)
+				html += "<img draggable='false' class='tile' id='" + hand[i] + "' src='img/mahjong_tiles/" + img_name[i] + "'>";
+			var code = $(html);
+			$("#remain").html('<h1>Remaining tiles: ' + (136 - ind) + '</h1>');
+			var ready = isReady(hand);
+
+			$("#status").html('<h1>Status: ' + ((hand.length % 3 == 2) ? isRon(hand) : ((ready.length == 0 ? "Not Ready" : "Ready") + ready.toString())) + '</h1>');
+			code.filter('.tile').bind('click', function() {
+				if (hand.length != 14) {
+					$("#get_card").click();
+					return;
+				}
+				if (ind == 136) {
+					alert("QQ, no tiles");
+					return;
+				}
+				var temp = new Array();
+				var to_delete = parseInt($(this).attr('id'));
+				console.log(to_delete);
+				for (var i = 0; i < hand.length; i++)
+					if (hand[i] != to_delete)
+						temp.push(hand[i]);
+				hand = temp;
+				show();
+			});
+
+			$("#display").html(code);
+		}
+
+		$("#reset").click(function() {
+			arr = new Array();
+			ind = 13;
+			for (var i = 0; i < 136; i++)
+				arr.push(i);
+			shuffle(arr);
+			hand = new Array();
+			for (var i = 0; i < 13; i++)
+				hand.push(arr[i]);
+			show();
+		});
+
+	})
+	</script>
+</head>
+
+<body>
+	<br>
+	<div id="remain">
+	</div>
+	<div id="status">
+	</div>
+	<hr>
+	<div id="display">
+		<h1>Please click reset</h1>
+	</div>
+	<button id="get_card" class="btn btn-lg">Get Card</button>
+	<br>
+	<br>
+	<button id="reset" class="btn btn-lg">Reset</button>
+	<script type="text/javascript">
+	var hand = new JMJHand();
+	hand.addTile(0);
+	hand.addTile(1);
+	hand.addTile(2);
+	hand.addTile(4);
+	hand.addTile(8);
+	hand.addTile(12);
+	hand.addTile(16);
+	hand.addTile(20);
+	hand.addTile(25);
+	hand.addTile(28);
+	hand.addTile(32);
+	hand.addTile(33);
+	hand.addTile(34);
+	hand.addTile(35);
+	console.log(hand.judge());
+	var result = hand.judge();
+	$('#display').html(JSON.stringify(result));
+	</script>
+</body>
+
+</html>
