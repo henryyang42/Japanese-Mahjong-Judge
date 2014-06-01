@@ -7,6 +7,21 @@ const TOTAL_TILES = 136;
 /*
 Some utilty function
 */
+var cmp = function(a, b) {
+	return a - b
+};
+
+function abs(x) {
+	return x > 0 ? x : -x;
+}
+
+function getRelative(x, y) { //x see y
+	return y - x >= 0 ? y - x : y - x + 4;
+}
+
+function getRelativeWind(x, y) { //x see y
+	return 4 - getRelative(x, y);
+}
 
 function decode(x) {
 	var ind = Math.floor(x / 4);
@@ -27,14 +42,16 @@ JMJHand
 
 function JMJHand() {
 	this.hand = new Hand();
+	this.undecoded_hand = new Array();
 }
 
 JMJHand.prototype.addTile = function(tile) {
 	this.hand.add(decode(tile));
+	this.undecoded_hand.push(tile);
 };
 
 JMJHand.prototype.addMeld = function(type, cards) {
-	cards.sort();
+	cards.sort(cmp);
 	for (var i = 0; i < cards.length; i++)
 		cards[i] = decode(cards[i]);
 	this.hand.melds.push([type, cards[0], cards]);
@@ -47,6 +64,7 @@ JMJHand.prototype.addDora = function(tile) {
 JMJHand.prototype.removeTile = function(tile) {
 	this.hand.tiles.remove(decode(tile));
 	this.hand.lastDraw = -1;
+	this.undecoded_hand.remove(tile);
 }
 
 JMJHand.prototype.isReady = function() {
@@ -57,7 +75,7 @@ JMJHand.prototype.isReady = function() {
 JMJHand.prototype.getReady = function() {
 	var result = this.hand.wait();
 	var simplify = new Array();
-	for(var i = 0; i < result.length; i++)
+	for (var i = 0; i < result.length; i++)
 		simplify.push(result[i][0]);
 	return simplify;
 };
@@ -156,6 +174,16 @@ JMJPlayer.prototype.getNewHand = function() {
 	this.dahai = new Array();
 	this.round = 0;
 };
+
+/*
+JMJProtocal - for server to client and client to server communication
+*/
+
+function JMJProtocal() {
+	this.type = "";
+}
+
+
 /*
 JMJTable - the top module of JMJ
 
@@ -172,6 +200,10 @@ function JMJTable() {
 	this.current_player;
 	this.dealer_player = 0;
 	this.crrent_state;
+
+	this.round = 1; //1~4
+	this.wind = 0; // 0~3
+
 }
 
 JMJTable.prototype.initGame = function() {
@@ -185,11 +217,30 @@ JMJTable.prototype.initGame = function() {
 	for (var i = 0; i < 4; i++)
 		this.players[i].getNewHand(); //refresh players' hands
 
-	for (var i = 0; i < 4; i++)
+	for (var i = 0; i < 4; i++) {
+		this.players[i].hand.hand.ownWind = (WIND_EAST + getRelativeWind(i, this.dealer_player)) << 8;
 		for (var j = 0; j < 13; j++)
 			this.players[i].addTile(this.getTile()); //disturibute tile
+	}
 
 	this.addDora(this.getTile()); //the initial dora
+
+	var result = new Array();
+
+	for (var i = 0; i < 4; i++) {
+		var state = new JMJProtocal();
+		state.type = this.current_state;
+		state.round = this.round;
+		state.wind = this.wind;
+		state.ownWind = getRelativeWind(i, this.dealer_player);
+		state.dora = this.doras[0];
+
+		state.hand = this.players[i].hand.undecoded_hand.slice();
+		state.hand.sort(cmp);
+
+		result.push(state);
+	}
+	return result;
 };
 
 JMJTable.prototype.getTile = function() {
@@ -209,46 +260,102 @@ JMJTable.prototype.exec = function(command) {
 	console.log(cmd);
 	this.current_state = cmd.type;
 	if (cmd.type == "tsumo") {
-		this.players[cmd.actor].addTile(this.getTile());
+		return this.tsumo(cmd);
 	} else if (cmd.type == "dahai") {
-		this.players[cmd.actor].discardTile(cmd.pai); //discade tile
-		this.players[cmd.actor].dahai.push(cmd.pai); //add to dahai
+		return this.dahai(cmd);
 	} else if (cmd.type == "chi") {
-		for (var i = 0; i < cmd.consumed.length; i++) {
-			this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
-		}
-		const CHII = (2 << 8);
-
-		var cards = cmd.consumed.concat([cmd.pai]); //join the meld
-		this.players[cmd.actor].hand.addMeld(CHII, cards); // add meld to hand
+		return this.chi(cmd);
 	} else if (cmd.type == "pon") {
-		for (var i = 0; i < cmd.consumed.length; i++) {
-			this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
-		}
-
-		const PON = (3 << 8);
-
-		var cards = cmd.consumed.concat([cmd.pai]); //join the meld
-		this.players[cmd.actor].hand.addMeld(PON, cards); // add meld to hand
+		return this.pon(cmd);
 	} else if (cmd.type == "kan") {
-		for (var i = 0; i < cmd.consumed.length; i++) {
-			this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
-		}
-
-		const KAN = (4 << 8);
-
-		var cards = cmd.consumed.concat([cmd.pai]); //join the meld
-		this.players[cmd.actor].hand.addMeld(KAN, cards); // add meld to hand
+		this.kan(cmd);
 	} else if (cmd.type == "ckan") {
-		for (var i = 0; i < cmd.consumed.length; i++) {
-			this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
-		}
-
-		const CKAN = (4 << 8) + 2;
-
-		var cards = cmd.consumed.concat([cmd.pai]); //join the meld
-		this.players[cmd.actor].hand.addMeld(CKAN, cards); // add meld to hand
+		return this.ckan(cmd);
 	}
+};
+
+/*
+dahai
+*/
+JMJTable.prototype.dahai = function(cmd) {
+	this.players[cmd.actor].discardTile(cmd.pai); //discade tile
+	this.players[cmd.actor].dahai.push(cmd.pai); //add to dahai
+};
+
+/*
+tsumo
+*/
+JMJTable.prototype.tsumo = function(cmd) {
+	var pai = this.getTile();
+	this.players[cmd.actor].addTile(pai);
+	
+	var result = new Array();
+
+	for (var i = 0; i < 4; i++) {
+		var state = new JMJProtocal();
+		state.type = this.current_state;
+		state.pai = (i == cmd.actor) ? pai : -1;
+		state.actor = getRelative(i, cmd.actor);
+
+		result.push(state);
+	}
+
+	return result;
+};
+
+/*
+chi
+*/
+JMJTable.prototype.chi = function(cmd) {
+	for (var i = 0; i < cmd.consumed.length; i++) {
+		this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
+	}
+	const CHII = (2 << 8);
+
+	var cards = cmd.consumed.concat([cmd.pai]); //join the meld
+	this.players[cmd.actor].hand.addMeld(CHII, cards); // add meld to hand
+};
+
+/*
+pon
+*/
+JMJTable.prototype.pon = function(cmd) {
+	for (var i = 0; i < cmd.consumed.length; i++) {
+		this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
+	}
+
+	const PON = (3 << 8);
+
+	var cards = cmd.consumed.concat([cmd.pai]); //join the meld
+	this.players[cmd.actor].hand.addMeld(PON, cards); // add meld to hand
+};
+
+/*
+kan
+*/
+JMJTable.prototype.kan = function(cmd) {
+	for (var i = 0; i < cmd.consumed.length; i++) {
+		this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
+	}
+
+	const KAN = (4 << 8);
+
+	var cards = cmd.consumed.concat([cmd.pai]); //join the meld
+	this.players[cmd.actor].hand.addMeld(KAN, cards); // add meld to hand
+};
+
+/*
+ckan
+*/
+JMJTable.prototype.ckan = function(cmd) {
+	for (var i = 0; i < cmd.consumed.length; i++) {
+		this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
+	}
+
+	const CKAN = (4 << 8) + 2;
+
+	var cards = cmd.consumed.concat([cmd.pai]); //join the meld
+	this.players[cmd.actor].hand.addMeld(CKAN, cards); // add meld to hand
 };
 
 /*
