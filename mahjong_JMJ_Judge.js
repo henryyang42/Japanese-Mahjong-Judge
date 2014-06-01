@@ -33,8 +33,11 @@ JMJHand.prototype.addTile = function(tile) {
 	this.hand.add(decode(tile));
 };
 
-JMJHand.prototype.addMeld = function() {
-	// TODO
+JMJHand.prototype.addMeld = function(type, cards) {
+	cards.sort();
+	for (var i = 0; i < cards.length; i++)
+		cards[i] = decode(cards[i]);
+	this.hand.melds.push([type, cards[0], cards]);
 };
 
 JMJHand.prototype.addDora = function(tile) {
@@ -45,6 +48,20 @@ JMJHand.prototype.removeTile = function(tile) {
 	this.hand.tiles.remove(decode(tile));
 	this.hand.lastDraw = -1;
 }
+
+JMJHand.prototype.isReady = function() {
+	var result = this.hand.wait();
+	return result.length > 0;
+};
+
+JMJHand.prototype.getReady = function() {
+	var result = this.hand.wait();
+	var simplify = new Array();
+	for(var i = 0; i < result.length; i++)
+		simplify.push(result[i][0]);
+	return simplify;
+};
+
 
 JMJHand.prototype.judge = function() {
 	var combinations = this.hand.valid();
@@ -106,7 +123,9 @@ function JMJTilePool(tile_size) {
 	this.pool = new Array();
 	for (var i = 0; i < tile_size; i++)
 		this.pool.push(i);
-	this.pool.shuffle();
+	//debugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebug
+	//this.pool.shuffle();
+	//debugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebug*/
 }
 
 JMJTilePool.prototype.getTile = function() {
@@ -121,6 +140,7 @@ function JMJPlayer() {
 	this.hand;
 	this.point = INIT_POINT;
 	this.round;
+	this.dahai;
 }
 
 JMJPlayer.prototype.addTile = function(tile) {
@@ -133,6 +153,7 @@ JMJPlayer.prototype.discardTile = function(tile) {
 
 JMJPlayer.prototype.getNewHand = function() {
 	this.hand = new JMJHand();
+	this.dahai = new Array();
 	this.round = 0;
 };
 /*
@@ -150,6 +171,7 @@ function JMJTable() {
 	this.tile_pool;
 	this.current_player;
 	this.dealer_player = 0;
+	this.crrent_state;
 }
 
 JMJTable.prototype.initGame = function() {
@@ -157,6 +179,8 @@ JMJTable.prototype.initGame = function() {
 	this.current_player = this.dealer_player; //dealer first
 	this.tile_pool = new JMJTilePool(TOTAL_TILES); // get a new tile pool
 	this.doras = new Array(); // new empty dora array
+
+	this.current_state = "start"
 
 	for (var i = 0; i < 4; i++)
 		this.players[i].getNewHand(); //refresh players' hands
@@ -178,6 +202,54 @@ JMJTable.prototype.addDora = function(tile) {
 	for (var i = 0; i < 4; i++)
 		this.players[i].hand.addDora(tile);
 }
+
+JMJTable.prototype.exec = function(command) {
+
+	var cmd = JSON.parse(command); // turn the json string to js object
+	console.log(cmd);
+	this.current_state = cmd.type;
+	if (cmd.type == "tsumo") {
+		this.players[cmd.actor].addTile(this.getTile());
+	} else if (cmd.type == "dahai") {
+		this.players[cmd.actor].discardTile(cmd.pai); //discade tile
+		this.players[cmd.actor].dahai.push(cmd.pai); //add to dahai
+	} else if (cmd.type == "chi") {
+		for (var i = 0; i < cmd.consumed.length; i++) {
+			this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
+		}
+		const CHII = (2 << 8);
+
+		var cards = cmd.consumed.concat([cmd.pai]); //join the meld
+		this.players[cmd.actor].hand.addMeld(CHII, cards); // add meld to hand
+	} else if (cmd.type == "pon") {
+		for (var i = 0; i < cmd.consumed.length; i++) {
+			this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
+		}
+
+		const PON = (3 << 8);
+
+		var cards = cmd.consumed.concat([cmd.pai]); //join the meld
+		this.players[cmd.actor].hand.addMeld(PON, cards); // add meld to hand
+	} else if (cmd.type == "kan") {
+		for (var i = 0; i < cmd.consumed.length; i++) {
+			this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
+		}
+
+		const KAN = (4 << 8);
+
+		var cards = cmd.consumed.concat([cmd.pai]); //join the meld
+		this.players[cmd.actor].hand.addMeld(KAN, cards); // add meld to hand
+	} else if (cmd.type == "ckan") {
+		for (var i = 0; i < cmd.consumed.length; i++) {
+			this.players[cmd.actor].hand.removeTile(cmd.consumed[i]);
+		}
+
+		const CKAN = (4 << 8) + 2;
+
+		var cards = cmd.consumed.concat([cmd.pai]); //join the meld
+		this.players[cmd.actor].hand.addMeld(CKAN, cards); // add meld to hand
+	}
+};
 
 /*
 http://gimite.net/mjai/samples/sample.mjson.html

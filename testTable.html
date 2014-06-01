@@ -25,6 +25,18 @@
     g(t);
     t.initGame();
     g(t);
+        g(t.players[0].hand.getReady());
+    t.exec('{"type":"tsumo","actor":0}');
+    g(t);
+    t.exec('{"type":"dahai","actor":0,"pai":12,"tsumogiri":false}');
+    g(t);
+    t.exec('{"type":"chi","actor":1,"target":0,"pai":12,"consumed":[16,20]}');
+
+    g(t.players[1].hand.judge());
+    t.exec('{"type":"dahai","actor":1, "pai":24}');
+    g(t);
+    t.exec('{"type":"tsumo","actor":2}');
+    g(t);
     </script>
 
 </head>
