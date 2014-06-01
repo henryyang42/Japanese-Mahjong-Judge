@@ -12,9 +12,9 @@ function generate_img_name(arr) {
 	for (var i = 0; i < arr.length; i++) {
 		var ind = Math.floor((arr[i] / 4));
 		if (ind < 27 && ind % 9 == 4 && arr[i] % 4 == 3)
-			result.push((ind + 1) + "_red.png");
+			result.push((ind) + "_red.png");
 		else
-			result.push((ind + 1) + ".png");
+			result.push((ind) + ".png");
 	}
 	return result;
 }
@@ -37,7 +37,7 @@ function isReady(hand) {
 			ctt[i]++;
 			mahjong_ready_dfs(0, ctt);
 			if (isgoal) {
-				ans.push("<img draggable='false' class='display_tile' src='img/mahjong_tiles/" + (i + 1) + ".png'>");
+				ans.push("<img draggable='false' class='display_tile' src='img/mahjong_tiles/" + (i) + ".png'>");
 			}
 		}
 	return ans;
@@ -107,13 +107,21 @@ function Hand(){
 }
 */
 
-function decode(x){
+function translate(result) {
+	for (var i = 0; i < result.yakuType.length; i++)
+		if (translations[result.yakuType[i][0]])
+			result.yakuType[i][0] = translations[result.yakuType[i][0]][2];
+	result.limitName = translations[result.limitName][2];
+}
+
+
+function decode(x) {
 	var ind = Math.floor(x / 4);
 	return (ind << 8) + (ind < 27 && ind % 9 == 4 && x % 4 == 3);
 }
 
 
-function JMJHand(){
+function JMJHand() {
 	this.hand = new Hand();
 }
 
@@ -137,50 +145,51 @@ JMJHand.prototype.removeTile = function(tile) {
 JMJHand.prototype.judge = function() {
 	var combinations = this.hand.valid();
 	var h = this.hand;
-	var result = {point: 0, fu:0 , yaku: 0, yakuman: 0, yakuType: new Array(), limitName: ""};
+	var result = {
+		point: 0,
+		fu: 0,
+		yaku: 0,
+		yakuman: 0,
+		yakuType: new Array(),
+		limitName: ""
+	};
 	for (var i = 0; i < combinations.length; i++) {
-			var c = combinations[i];
-			
-			var fuCalc = calculateFu(c, h);
-			var yakuCalc = calculateYaku(c, h);
+		var c = combinations[i];
 
-			var yakumanCount = yakuCalc[0] < 0 ? -yakuCalc[0] : 0;
+		var fuCalc = calculateFu(c, h);
+		var yakuCalc = calculateYaku(c, h);
 
-			var calculatedHandValue = yakumanCount ?
-				8000 * yakumanCount :
-				fuCalc[0] * (1 << (yakuCalc[0] + 2));
+		var yakumanCount = yakuCalc[0] < 0 ? -yakuCalc[0] : 0;
 
-			var handValue = calculatedHandValue;
-			var limitName = ""; /* limit name is the rough */
+		var calculatedHandValue = yakumanCount ?
+			8000 * yakumanCount :
+			fuCalc[0] * (1 << (yakuCalc[0] + 2));
 
-			if (yakuCalc[0] < -3) limitName = "SUPER YAKUMAN";
-			else if (yakuCalc[0] == -3) limitName = "TRIPLE YAKUMAN";
-			else if (yakuCalc[0] == -2) limitName = "DOUBLE YAKUMAN";
-			else if (yakuCalc[0] == -1) limitName = "YAKUMAN";
-			else if (yakuCalc[0] < 6 && handValue > 2000) handValue = 2000, limitName = "MANGAN";
-			else if (yakuCalc[0] < 8 && handValue > 3000) handValue = 3000, limitName = "HANEMAN";
-			else if (yakuCalc[0] < 11 && handValue > 4000) handValue = 4000, limitName = "BAIMAN";
-			else if (yakuCalc[0] < 13 && handValue > 6000) handValue = 6000, limitName = "SANBAIMAN";
-			else if (yakuCalc[0] >= 13 && handValue > 8000) handValue = 8000, limitName = "KAZOE-YAKUMAN";
+		var handValue = calculatedHandValue;
+		var limitName = ""; /* limit name is the rough */
 
-			var payoff = handValue * (h.dealer ? 6 : 4);
+		if (yakuCalc[0] < -3) limitName = "SUPER YAKUMAN";
+		else if (yakuCalc[0] == -3) limitName = "TRIPLE YAKUMAN";
+		else if (yakuCalc[0] == -2) limitName = "DOUBLE YAKUMAN";
+		else if (yakuCalc[0] == -1) limitName = "YAKUMAN";
+		else if (yakuCalc[0] < 6 && handValue > 2000) handValue = 2000, limitName = "MANGAN";
+		else if (yakuCalc[0] < 8 && handValue > 3000) handValue = 3000, limitName = "HANEMAN";
+		else if (yakuCalc[0] < 11 && handValue > 4000) handValue = 4000, limitName = "BAIMAN";
+		else if (yakuCalc[0] < 13 && handValue > 6000) handValue = 6000, limitName = "SANBAIMAN";
+		else if (yakuCalc[0] >= 13 && handValue > 8000) handValue = 8000, limitName = "KAZOE-YAKUMAN";
 
-			if(calculatedHandValue > result.point){
-				result.point = handValue;
-				result.fu = fuCalc[0];
-				result.yaku = yakuCalc[0];
-				result.yakuman = yakumanCount;
-				for(var i = 0; i < yakuCalc[1].length; i++)
-					result.yakuType.push([yakuCalc[1][i][0], yakuCalc[1][i][1]]);
-				result.limitName = limitName;
-			}
+		var payoff = handValue * (h.dealer ? 6 : 4);
+
+		if (handValue > result.point) {
+			result.point = handValue;
+			result.fu = fuCalc[0];
+			result.yaku = yakuCalc[0];
+			result.yakuman = yakumanCount;
+			for (var i = 0; i < yakuCalc[1].length; i++)
+				result.yakuType.push([yakuCalc[1][i][0], yakuCalc[1][i][1]]);
+			result.limitName = limitName;
 		}
+	}
 	translate(result);
 	return result;
-}
-
-function translate(result){
-	result.limitName = translations[result.limitName][2];
-	for(var i = 0; i < result.yakuType.length; i++)
-		result.yakuType[i][0] = translations[result.yakuType[i][0]][2];
 }

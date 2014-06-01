@@ -1,0 +1,402 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<head>
+<meta http-equiv=Content-Type content="text/html;charset=utf-8">
+<link rel="shortcut icon" href="favicon.png">
+<title>Mahjong</title>
+<script src="mahjong.js"></script>
+<script src="mahjong_judge.js"></script>
+<script type="text/javascript" src="soundmanager2.js"></script>
+<script>
+soundManager.debugMode = false;
+</script>
+<style>
+
+.activemode{
+	background-color:#fee !important;
+	color: #844 !important;
+	border: solid 2px !important;
+	margin: 0px !important;
+}
+.mode a{
+	padding: 0.1em 0.2em;
+	margin: 1px;
+	background-color:#eff;
+	color: #244;
+	border: dotted 1px;
+	font-weight: bold;
+	text-decoration: none;
+}
+.mode a:hover{
+	text-decoration: underline;
+}
+
+.setting{
+	padding: 0.1em;
+	color: #442;
+	border: solid 1px #884;
+	background-color:#ffe;
+	font-weight: bold;
+	display: inline-block;
+}
+.setting label,.setting input{
+	font-size: small;
+	margin-left: 0;
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+.winning_hand{
+	margin-top: 0.2em;
+	padding: 0.1em;
+	color: #442;
+	border: solid 1px #884;
+	background-color:#ffe;
+	display: inline-block;
+}
+.winning_hand p{
+	margin-top: 0.2em;
+	margin-bottom: 0;
+}
+.winning_hand table{
+	display: inline-table;
+	margin: 0 0.3em;
+}
+.winning_hand th{
+	border-bottom:2px solid #884;
+	font-size: 1.1em;
+	padding: 0.5em 0.2em;
+}
+.winning_hand td.r1{
+	text-align: right;
+}
+h2 {
+	margin: 0em;
+}
+.tl{
+	padding: 0.3em 0.3em 0.3em 0.3em;
+	margin-left: -0.3em;
+	margin-right: 19px;
+	position:relative;
+}
+span.tl:hover{
+	margin-right: 0 !important;
+	background: #eea;
+}
+.tl img{
+	display:none;
+	margin-left: 3px;
+	vertical-align:middle;
+	border: none;
+}
+
+span.tl:hover img{
+	display:inline;
+}
+
+span.tl .dropdown{
+	display:none;
+	position: absolute;
+	padding:0.4em;
+	left: 0em;
+	top: 16px;
+	background: #eea;
+	border: 1px dotted #202010;
+	white-space: nowrap;
+	z-index: 1;
+}
+span.tl:hover .dropdown{
+	display:inline;
+}
+
+</style>
+</head>
+<body>
+<p class="mode">
+<a id="chii" href="#" onclick="setMode('chii')">Chii</a>
+<a id="pon"  href="#" onclick="setMode('pon')">Pon</a>
+<a id="kan"  href="#" onclick="setMode('kan')">Kan</a>
+<a id="ckan" href="#" onclick="setMode('ckan')">Closed Kan</a>
+</p>
+<script>
+
+function removeMeld(tile){
+	if(mode==''){
+		hand.removeMeld(tile);
+		checkValid();	
+	}
+	else setMode('');
+}
+
+function anyTileClick(tile){
+	if(mode=='dora'){
+		e("doralist").appendChild(createTile(smallTileset,tile.code,{onclick:function(tile){
+			table.dora.removeOne(tile.code);			
+			tile.remove();
+			checkValid();
+		}}).elem);
+		table.dora.push(tile.code);
+		checkValid();
+	} else{
+		setMode('');
+	}
+}
+
+function handTileClick(tile){
+	if(mode==''){
+		hand.fadeOutTile(tile);
+		hand.changeWait();
+		hand.refresh();
+		checkValid();	
+	} else if(mode=='chii' || mode=='pon' || mode=='kan' || mode=='ckan'){
+		var meld;
+		var kind;
+
+		     if(mode=='chii')	meld=findChii(tile),	kind=CHII;
+		else if(mode=='pon')	meld=findPon(tile),		kind=PON;
+		else if(mode=='kan')	meld=findKan(tile),		kind=KAN;
+		else if(mode=='ckan')	meld=findKan(tile),		kind=CLOSED+KAN;
+		
+		if(defined(meld)){
+			if(kind==CLOSED+KAN){
+				meld[1].code|=CLOSED;
+				meld[2].code|=CLOSED;
+			}
+			hand.addMeld(kind,meld,{onclick:removeMeld});
+			checkValid();	
+		}
+
+		setMode('');
+	}
+	
+	anyTileClick(tile);
+}
+
+function adderTileClick(tile){
+	if(mode==''){
+		hand.addTile(tile.code,tile.x,tile.y,{onclick:handTileClick});
+		if(defined(debug))
+			console.log(tile.code);
+		checkValid();	
+	}
+	
+	anyTileClick(tile);
+}
+
+function createTable(count,f){
+	var table=document.createElement('table');
+	var first=true;
+	
+	var callback=function(list){
+		var e1=document.createElement('tr');
+		var e2;
+		var i=1;
+
+		list.forEach(function(e){
+			e2=document.createElement(first?'th':'td');
+			e2.innerHTML=e;
+			e2.className="r"+(i++);
+			e1.appendChild(e2);
+		});
+		
+		if(e2) e2.colSpan=count-list.length+1;
+
+		table.appendChild(e1);
+		first=false;
+	};
+	f(callback);
+
+	return table;
+}
+
+/* most important part in this code */
+function checkValid(){
+	var h=hand.toHand();
+	/* assign some boolean to judge */
+	h.ron=e("ron").checked;
+	h.riichi=e("riichi").checked;
+	h.rinjan=e("rinjan").checked;
+	h.ippatsu=e("ippatsu").checked;
+	h.haidei=e("haidei").checked;
+	h.chankan=e("chankan").checked;
+	h.houdei=e("houdei").checked;
+	h.dabururiichi=e("dabururiichi").checked;
+	h.dealer=e("dealer").checked;
+
+	var listelem=e("winning_hands");
+	listelem.innerHTML="";
+
+	var combinations=hand.toHand().valid();
+	if(combinations.length==0) return;
+	
+	for(var i=0;i<combinations.length;i++){
+		var c=combinations[i];
+	
+		var elem=document.createElement('div');
+		elem.className="winning_hand";
+		
+		elem.appendChild(createCombination(smallTileset,c));
+		
+		var fuCalc=calculateFu(c,h);
+		var yakuCalc=calculateYaku(c,h);
+		
+		var yakumanCount=yakuCalc[0]<0?-yakuCalc[0]:0;		
+
+		var calculatedHandValue=yakumanCount?
+			8000*yakumanCount:
+			fuCalc[0]*(1<<(yakuCalc[0]+2));
+
+		var handValue=calculatedHandValue;
+		var limitName=""; /* limit name is the rough */
+		
+		     if(yakuCalc[0]< -3)					               limitName="SUPER YAKUMAN";
+		else if(yakuCalc[0]==-3)					               limitName="TRIPLE YAKUMAN";
+		else if(yakuCalc[0]==-2)					               limitName="DOUBLE YAKUMAN";
+		else if(yakuCalc[0]==-1)					               limitName="YAKUMAN";
+		else if(yakuCalc[0]< 6  && handValue>2000)	handValue=2000,limitName="MANGAN";
+		else if(yakuCalc[0]< 8  && handValue>3000)	handValue=3000,limitName="HANEMAN";
+		else if(yakuCalc[0]<11  && handValue>4000)	handValue=4000,limitName="BAIMAN";
+		else if(yakuCalc[0]<13  && handValue>6000)	handValue=6000,limitName="SANBAIMAN";
+		else if(yakuCalc[0]>=13 && handValue>8000)	handValue=8000,limitName="KAZOE-YAKUMAN";
+		
+		var payoff=handValue*(h.dealer?6:4);
+		
+		function roundToHundred(v){return Math.ceil(v/100)*100};
+		function displayHan(v){return v==-1?"S":v==-2?"X":v};
+
+		if(yakuCalc[0]>=0)
+		elem.appendChild(createTable(2,function(addRow){
+			addRow(["Tally"]);
+			fuCalc[1].forEach(function(e){
+				addRow(["+"+e[1],e[0]]);
+			});
+			addRow([fuCalc[0],"Total"]);
+		}));
+		
+		elem.appendChild(createTable(2,function(addRow){
+			addRow(["Exponential"]);
+			yakuCalc[1].forEach(function(e){
+				addRow([displayHan(e[1]),translate(e[0])]);
+			});
+			if(yakuCalc[0]>=0) addRow([yakuCalc[0],"Total"]);
+		}));
+				
+		if(yakuCalc[0]!=0)
+		elem.appendChild(createTable(2,function(addRow){
+			addRow(["Score"]);
+			
+			if(yakuCalc[0]>0)
+				addRow([calculatedHandValue,"Hand value"]);
+			
+			if(limitName)
+				addRow([handValue,"Limit: "+translate(limitName,lc)]);
+			
+			addRow([payoff,"Payoff"]);
+			
+			if(h.dealer && h.ron)
+				addRow([roundToHundred(handValue*6),"Paid by player"]);
+			else if(h.dealer && !h.ron)
+				addRow([roundToHundred(handValue*2),"Paid by each player"]);
+			else if(!h.dealer && h.ron)
+				addRow([roundToHundred(handValue*4),"Paid by player"]);
+			else
+				addRow([roundToHundred(handValue*2),"Paid by dealer"]),
+				addRow([roundToHundred(handValue),"Paid by each of two players"]);
+		}));
+		
+		listelem.appendChild(elem);
+		
+		listelem.appendChild(document.createElement('br'));
+
+		if(defined(debug)){
+			console.log("fu: "+fuCalc);
+			console.log("yaku: "+yakuCalc);
+			console.log("yakumanCount: " + yakumanCount);
+			console.log("handValue: " + handValue);
+			console.log("combination: " + c);
+		}
+
+	}
+	console.log(combinations);
+}
+
+var defaultTileset=new TileSet("tiles.png",39,60);
+var shadowTileset=new TileSet("tiles-disabled.png",39,60);
+var smallTileset=new TileSet("tiles-small.png",26,40);
+var shadowSmallTileset=new TileSet("tiles-disabled-small.png",26,40);
+
+var table=new Table(0,350,defaultTileset);
+var hand=table.addHand(0,0,{onclick:adderTileClick});
+
+for(var i=0;i<4;i++){
+	var deck=table.addSet(0,96+i*TILE_HEIGHT);
+	for(var j=0;j<(i==3?7:9);j++){
+		deck.addTile((i*9+j)<<8,undefined,undefined,{onclick:adderTileClick});
+		if(j==4 && i<3) deck.addTile(((i*9+j)<<8)|1,undefined,undefined,{onclick:adderTileClick});
+	}
+}
+</script>
+<table class="setting">
+<tr><td><label><input type="radio" id="tsumo" name="winkind" checked="checked" onclick="checkValid()"/>Tsumo</label></td></tr>
+<tr><td><label><input type="radio" id="ron" name="winkind" onclick="checkValid()"/>Ron</label></td></tr>
+</table>
+<table class="setting"><tr><td class="mode"><a id="dora" href="#" onclick="return setMode('dora');">Dora</a></td><td id="doralist"></td></tr></table>
+<table class="setting"><tr><td>Round wind:</td><td id="roundWindsElem"></td></tr></table>
+<table class="setting"><tr><td>Position wind:</td><td id="ownWindsElem"></td></tr></table>
+<table class="setting">
+<tr>
+<td><label><input type="checkbox" id="riichi" name="riichi" onclick="checkValid()"/>Called riichi</label></td>
+<td><label><input type="checkbox" id="rinjan" name="rinjan" onclick="checkValid()"/>Won after drawing the extra tile after completing a quad</label></td>
+</tr>
+<tr>
+<td><label><input type="checkbox" id="ippatsu" name="ippatsu" onclick="checkValid()"/>Called riichi and won before next discard</label></td>
+<td><label><input type="checkbox" id="haidei" name="haidei" onclick="checkValid()"/>Won on the last legal tile in the wall</label></td>
+</tr>
+<tr>
+<td><label><input type="checkbox" id="chankan" name="chankan" onclick="checkValid()"/>Stole the winnig tile from a kan</label></td>
+<td><label><input type="checkbox" id="houdei" name="houdei" onclick="checkValid()"/>Won on the last legal discard by other player</label></td>
+</tr>
+<tr>
+<td><label><input type="checkbox" id="dabururiichi" name="dabururiichi" onclick="checkValid()"/>Called riichi on first discard</label></td>
+<td><label><input type="checkbox" id="dealer" name="dealer" onclick="checkValid()"/>Is a dealer</label></td>
+</tr>
+</table>
+<div id="winning_hands"></div>
+<script>
+var roundWinds=[];
+var ownWinds=[];
+function selectRoundWind(tile){
+	roundWinds.forEach(disable);
+	enable(tile);
+	table.roundWind=tile.code;
+
+	checkValid();
+};
+function selectOwnWind(tile){
+	ownWinds.forEach(disable);
+	enable(tile);
+	hand.ownWind=tile.code;
+
+	checkValid();
+};
+var w1;
+var w2;
+[WIND_EAST,WIND_SOUTH,WIND_WEST,WIND_NORTH].forEach(function(w){
+	var tile=createTile(smallTileset,fromType(w),{onclick:selectRoundWind});
+	e("roundWindsElem").appendChild(tile.elem);
+	roundWinds.push(tile);
+
+	if(!w1) w1=tile;
+});
+[WIND_EAST,WIND_SOUTH,WIND_WEST,WIND_NORTH].forEach(function(w){
+	var tile=createTile(smallTileset,fromType(w),{onclick:selectOwnWind});
+	e("ownWindsElem").appendChild(tile.elem);
+	ownWinds.push(tile);
+
+	if(!w2) w2=tile;
+});
+
+selectRoundWind(w1);
+selectOwnWind(w2);
+</script>
+</body>
+

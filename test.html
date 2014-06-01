@@ -10,24 +10,50 @@
 	<script src="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
 
 	<style type="text/css">
-	.tile, .display_tile{
+	.tile, .display_tile {
 		width: 80px;
-
 	}
 	</style>
 	<script src="mahjong_judge.js"></script>
 	<script src="mahjong_utility.js"></script>
+	
+	<script type="text/javascript">
+	/*var hand = new JMJHand();
+	hand.addTile(0);
+	hand.addTile(1);
+	hand.addTile(2);
+	hand.addTile(4);
+	hand.addTile(8);
+	hand.addTile(12);
+	hand.addTile(16);
+	hand.addTile(20);
+	hand.addTile(25);
+	hand.addTile(28);
+	hand.addTile(32);
+	hand.addTile(33);
+	hand.addTile(34);
+	hand.removeTile(34);
+	hand.addTile(34);
+	hand.addTile(35);
+	console.log(hand.judge());
+	var result = hand.judge();
+	$('#display').html(JSON.stringify(result));*/
+	</script>
 	<script type="text/javascript">
 	$(function() {
+		const TOT_TILES = 36;
 		var ind, arr, hand;
+		var hand_;
 		$("#get_card").click(function() {
 			if (!hand)
 				return;
-			if (hand.length == 13 && (136 - ind) > 0) {
-				hand.push(arr[136 - ind]);
+			if (hand.length == 13 && (TOT_TILES - ind) > 0) {
+				hand.push(arr[TOT_TILES - ind]);
+				hand_.addTile(arr[TOT_TILES - ind]);
 				ind++;
 				show();
 			}
+			
 		});
 
 		function show() {
@@ -40,7 +66,7 @@
 			for (var i = 0; i < img_name.length; i++)
 				html += "<img draggable='false' class='tile' id='" + hand[i] + "' src='img/mahjong_tiles/" + img_name[i] + "'>";
 			var code = $(html);
-			$("#remain").html('<h1>Remaining tiles: ' + (136 - ind) + '</h1>');
+			$("#remain").html('<h1>Remaining tiles: ' + (TOT_TILES - ind) + '</h1>');
 			var ready = isReady(hand);
 
 			$("#status").html('<h1>Status: ' + ((hand.length % 3 == 2) ? isRon(hand) : ((ready.length == 0 ? "Not Ready" : "Ready") + ready.toString())) + '</h1>');
@@ -49,12 +75,13 @@
 					$("#get_card").click();
 					return;
 				}
-				if (ind == 136) {
+				if (ind == TOT_TILES) {
 					alert("QQ, no tiles");
 					return;
 				}
 				var temp = new Array();
 				var to_delete = parseInt($(this).attr('id'));
+				hand_.removeTile(to_delete);
 				console.log(to_delete);
 				for (var i = 0; i < hand.length; i++)
 					if (hand[i] != to_delete)
@@ -63,18 +90,24 @@
 				show();
 			});
 
+
+			var result = hand_.judge();
+
 			$("#display").html(code);
+			$('#display').append("<br><br>"+JSON.stringify(result));
+			$('#display').append("<br><br>"+JSON.stringify(hand_));
 		}
 
 		$("#reset").click(function() {
 			arr = new Array();
+			hand_ = new JMJHand();
 			ind = 13;
-			for (var i = 0; i < 136; i++)
+			for (var i = 0; i < TOT_TILES; i++)
 				arr.push(i);
 			shuffle(arr);
 			hand = new Array();
 			for (var i = 0; i < 13; i++)
-				hand.push(arr[i]);
+				hand.push(arr[i]), hand_.addTile(arr[i]);
 			show();
 		});
 
@@ -96,26 +129,7 @@
 	<br>
 	<br>
 	<button id="reset" class="btn btn-lg">Reset</button>
-	<script type="text/javascript">
-	var hand = new JMJHand();
-	hand.addTile(0);
-	hand.addTile(1);
-	hand.addTile(2);
-	hand.addTile(4);
-	hand.addTile(8);
-	hand.addTile(12);
-	hand.addTile(16);
-	hand.addTile(20);
-	hand.addTile(25);
-	hand.addTile(28);
-	hand.addTile(32);
-	hand.addTile(33);
-	hand.addTile(34);
-	hand.addTile(35);
-	console.log(hand.judge());
-	var result = hand.judge();
-	$('#display').html(JSON.stringify(result));
-	</script>
+
 </body>
 
 </html>

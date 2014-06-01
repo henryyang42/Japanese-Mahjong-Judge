@@ -229,18 +229,8 @@ const translations={
                     "DOUBLE YAKUMAN" : ["voice/m07.mp3","daburu yakuman","ダブル役満"],
                     "TRIPLE YAKUMAN" : ["voice/m08.mp3","toripuru yakuman","トラブル役満"],
                      "SUPER YAKUMAN" : ["voice/m09.mp3","suupa yakuman","スーパー役満"],
-                     			  "" : ["", "", ""]
 };
-/*if (yakuCalc[0] < -3) limitName = "SUPER YAKUMAN";
-		else if (yakuCalc[0] == -3) limitName = "TRIPLE YAKUMAN";
-		else if (yakuCalc[0] == -2) limitName = "DOUBLE YAKUMAN";
-		else if (yakuCalc[0] == -1) limitName = "YAKUMAN";
-		else if (yakuCalc[0] < 6 && handValue > 2000) handValue = 2000, limitName = "MANGAN";
-		else if (yakuCalc[0] < 8 && handValue > 3000) handValue = 3000, limitName = "HANEMAN";
-		else if (yakuCalc[0] < 11 && handValue > 4000) handValue = 4000, limitName = "BAIMAN";
-		else if (yakuCalc[0] < 13 && handValue > 6000) handValue = 6000, limitName = "SANBAIMAN";
-		else if (yakuCalc[0] >= 13 && handValue > 8000) handValue = 8000, limitName = "KAZOE-YAKUMAN";
-*/
+
 function e(n){return document.getElementById(n);}
 function defined(x){return x!=undefined;}
 function now(){return new Date().getTime()}
@@ -269,7 +259,6 @@ Array.prototype.remove=function(item){
 	while (i<this.length) {
 		if (this[i]==item) {
 			this.splice(i,1);
-			return this;
 		} else{
 			i++;
 		}

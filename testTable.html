@@ -1,0 +1,36 @@
+<html>
+
+<head>
+    <title></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+
+    <style type="text/css">
+    
+    </style>
+    <div id="gg"></div>
+    <script src="mahjong_judge.js"></script>
+    <!--script src="mahjong_utility.js"></script-->
+    <script src="mahjong_JMJ_Judge.js"></script>
+    <script type="text/javascript">
+    function g(ggg) {
+        console.log(ggg);
+        $("#gg").append(JSON.stringify(ggg) + "<br><br>");
+    }
+    var t = new JMJTable();
+    g(t);
+    t.initGame();
+    g(t);
+    </script>
+
+</head>
+
+<body>
+
+</body>
+
+</html>

@@ -1,0 +1,101 @@
+<html>
+
+<head>
+	<title></title>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+	<!-- Latest compiled and minified JavaScript -->
+	<script src="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+
+	<script src="mahjong_judge.js"></script>
+
+	<style type="text/css">
+	
+	</style>
+	<script type="text/javascript">
+	function c(x) {
+		console.log(x);
+	}
+	var hand = new Hand();
+	
+	hand.add(0);
+	hand.add(0);
+	hand.add(0);
+	hand.add(256 * 1);
+	hand.add(256 * 2);
+	hand.add(256 * 3);
+	hand.add(256 * 4);
+	
+	hand.add(256 * 6);
+	hand.add(256 * 6);
+	hand.add(256 * 6);
+	hand.melds.push([768, 6912, [6912, 6912, 6912]]);
+	hand.addMeld(PON, [0, 0, 0]);
+	c(hand.dora);
+	hand.dora.push(256 * 8);
+	hand.dora.push(256 * 26);
+	hand.dora.push(256 * 26);
+	hand.dora.push(256 * 26);
+
+	var h = hand;
+	hand.add(256 * 5);
+	console.log(hand);
+	
+
+	c(hand.valid());
+
+	var combinations = hand.valid();
+	if (combinations.length > 0)
+
+		for (var i = 0; i < combinations.length; i++) {
+			var c = combinations[i];
+			
+			var fuCalc = calculateFu(c, h);
+			var yakuCalc = calculateYaku(c, h);
+
+			var yakumanCount = yakuCalc[0] < 0 ? -yakuCalc[0] : 0;
+
+			var calculatedHandValue = yakumanCount ?
+				8000 * yakumanCount :
+				fuCalc[0] * (1 << (yakuCalc[0] + 2));
+
+			var handValue = calculatedHandValue;
+			var limitName = ""; /* limit name is the rough */
+
+			if (yakuCalc[0] < -3) limitName = "SUPER YAKUMAN";
+			else if (yakuCalc[0] == -3) limitName = "TRIPLE YAKUMAN";
+			else if (yakuCalc[0] == -2) limitName = "DOUBLE YAKUMAN";
+			else if (yakuCalc[0] == -1) limitName = "YAKUMAN";
+			else if (yakuCalc[0] < 6 && handValue > 2000) handValue = 2000, limitName = "MANGAN";
+			else if (yakuCalc[0] < 8 && handValue > 3000) handValue = 3000, limitName = "HANEMAN";
+			else if (yakuCalc[0] < 11 && handValue > 4000) handValue = 4000, limitName = "BAIMAN";
+			else if (yakuCalc[0] < 13 && handValue > 6000) handValue = 6000, limitName = "SANBAIMAN";
+			else if (yakuCalc[0] >= 13 && handValue > 8000) handValue = 8000, limitName = "KAZOE-YAKUMAN";
+
+			var payoff = handValue * (h.dealer ? 6 : 4);
+
+
+
+			if (yakuCalc[0] >= 0)
+				var debug = 1;
+			if (defined(debug)) {
+				console.log("limit name: " + limitName);
+				console.log("fu: " + fuCalc);
+				console.log("yaku: " + yakuCalc);
+				console.log("yakumanCount: " + yakumanCount);
+				console.log("handValue: " + handValue);
+				console.log("combination: " + c);
+			}
+
+		}
+
+	console.log(combinations);
+	</script>
+</head>
+
+<body>
+
+</body>
+
+</html>
