@@ -41,11 +41,13 @@ function decode(x) {
 
 function translate(result) {
 	for (var i = 0; i < result.yakuType.length; i++)
-		if (translations[result.yakuType[i][0]]){
+		if (translations[result.yakuType[i][0]]) {
+			if (translations[result.yakuType[i][0]][0])
 				result.yakuType[i].push(translations[result.yakuType[i][0]][0]);
 			result.yakuType[i][0] = translations[result.yakuType[i][0]][2];
 		}
-	result.limitName = translations[result.limitName][2];
+	var temp = [translations[result.limitName][2], translations[result.limitName][0]];
+	result.limitName = temp;
 }
 
 
@@ -188,6 +190,108 @@ JMJPlayer.prototype.getNewHand = function() {
 	this.round = 0;
 };
 
+JMJPlayer.prototype.getCanDo_dahai = function(tile, chiEn) {
+	var canDo = new Array();
+	if (this.canPon(tile)) {
+		canDo.push("pon");
+	}
+	if (chiEn && this.canChi(tile)) {
+		canDo.push("chi");
+	}
+	if (this.canKan(tile)) {
+		canDo.push("kan");
+	}
+	if (this.canRon(tile)) {
+		canDo.push("ron");
+	}
+	return canDo;
+}
+
+JMJPlayer.prototype.getCanDo_tsumo = function(tile, en) {
+	var canDo = new Array();
+	if (en) {
+		if (this.canCkan()) {
+			canDo.push("ckan");
+		}
+		if (this.canTsumo()) {
+			canDo.push("tsumo");
+		}
+		if (this.canRiichi()) {
+			canDo.push("riichi");
+		}
+	}
+	return canDo;
+}
+
+JMJPlayer.prototype.canPon = function(tile) {
+	var tiles = this.hand.hand.tiles;
+
+	var ct = 0;
+	for (var i = 0; i < tiles.length; i++)
+		if ((tiles[i] >> 8) == (tile >> 2))
+			ct++;
+	return ct >= 2;
+}
+
+JMJPlayer.prototype.canChi = function(tile) {
+	var tiles = this.hand.hand.tiles;
+
+
+	for (var i = 0; i < tiles.length - 1; i++) {
+		var cards = [tiles[i] >> 8, tiles[i + 1] >> 8, tile >> 2];
+		cards.sort(cmp);
+		if (cards[2] < 27 && (cards[0] % 9 < cards[2] % 9) && cards[0] + 1 == cards[1] && cards[1] + 1 == cards[2])
+			return true;
+	}
+	return false;
+}
+
+JMJPlayer.prototype.canKan = function(tile) {
+	var tiles = this.hand.hand.tiles;
+
+	var ct = 0;
+	for (var i = 0; i < tiles.length; i++)
+		if ((tiles[i] >> 8) == (tile >> 2))
+			ct++;
+	return ct >= 2;
+}
+
+JMJPlayer.prototype.canCkan = function() {
+	var len = 1;
+	var tiles = this.hand.hand.tiles;
+	for (var i = 1; i < tiles.length; i++)
+		if (tiles[i] == tiles[i - len])
+			len++;
+	return len >= 4;
+}
+
+JMJPlayer.prototype.canRon = function(tile) {
+	this.addTile(tile);
+	var result = this.hand.judge();
+	this.discardTile(tile);
+	console.log(result);
+	return result.point > 0;
+}
+
+JMJPlayer.prototype.canTsumo = function() {
+	return this.hand.judge().point > 0;
+}
+
+JMJPlayer.prototype.canRiichi = function() {
+	var hand = this.hand;
+	if (hand.hand.tiles.length == 14) {
+		for (var i = 0; i < hand.hand.tiles.length; i++) {
+			var hand_copy = jQuery.extend(true, {}, hand); // copy object
+
+			hand_copy.hand.tiles.remove(hand.hand.tiles[i]); // delete one card
+
+			if (hand_copy.isReady()) // check is ready after deleting one card
+				return true;
+		}
+	}
+	return false;
+}
+
 /*
 JMJProtocal - for server to client and client to server communication
 */
@@ -270,23 +374,36 @@ JMJTable.prototype.addDora = function(tile) {
 JMJTable.prototype.exec = function(command) {
 
 	var cmd = JSON.parse(command); // turn the json string to js object
+	var result;
 	console.log(cmd);
 	this.current_state = cmd.type;
 	if (cmd.type == "tsumo") {
-		return this.tsumo(cmd);
+		result = this.tsumo(cmd);
 	} else if (cmd.type == "dahai") {
-		return this.dahai(cmd);
+		result = this.dahai(cmd);
 	} else if (cmd.type == "chi") {
-		return this.chi(cmd);
+		result = this.chi(cmd);
 	} else if (cmd.type == "pon") {
-		return this.pon(cmd);
+		result = this.pon(cmd);
 	} else if (cmd.type == "kan") {
-		this.kan(cmd);
+		result = this.kan(cmd);
 	} else if (cmd.type == "ckan") {
-		return this.ckan(cmd);
+		result = this.ckan(cmd);
 	} else if (cmd.type == "ron") {
-		return this.ron(cmd);
+		result = this.ron(cmd);
 	}
+
+	if (result) {
+		for (var i = 0; i < 4; i++) {
+			if (this.current_state == "dahai") {
+				result[i].canDo = this.players[i].getCanDo_dahai(cmd.pai, (i == (cmd.actor + 1) % 4) ? 1 : 0);
+			} else if (this.current_state == "tsumo") {
+				result[i].canDo = this.players[i].getCanDo_tsumo(cmd.pai, (i == (cmd.actor) % 4) ? 1 : 0);
+			}
+		}
+	}
+
+	return result;
 };
 
 /*
@@ -407,9 +524,9 @@ JMJTable.prototype.ron = function(cmd) {
 
 JMJTable.prototype.setHandProperty = function(hand, cmd) {
 	hand.ron = cmd.actor != cmd.target;
-	hand.riichi = 1;
+	hand.riichi = 0;
 	hand.rinjan = 0;
-	hand.ippatsu = 1;
+	hand.ippatsu = 0;
 	hand.haidei = 0;
 	hand.chankan = 0;
 	hand.houdei = 0;
