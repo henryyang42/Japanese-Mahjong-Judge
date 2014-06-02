@@ -28,13 +28,13 @@
         
     g(t.exec('{"type":"tsumo","actor":0}'));
     
-    g(t.exec('{"type":"dahai","actor":0,"pai":12,"tsumogiri":false}'));
+    g(t.exec('{"type":"dahai","actor":0,"pai":12}'));
     
-    g(t.exec('{"type":"chi","actor":1,"target":0,"pai":12,"consumed":[16,20]}'));
-
-    g(t.players[1].hand.judge());
+    //g(t.exec('{"type":"chi","actor":1,"target":0,"pai":12,"consumed":[16,20]}'));
+    g(t.exec('{"type":"ron","actor":1,"target":0,"pai":12}'));
+    //g(t.players[1].hand.judge());
     
-    g(t.exec('{"type":"dahai","actor":1, "pai":24}'));
+    g(t.initGame());
     
     g(t.exec('{"type":"tsumo","actor":2}'));
     

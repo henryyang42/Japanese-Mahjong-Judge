@@ -20,7 +20,18 @@ function getRelative(x, y) { //x see y
 }
 
 function getRelativeWind(x, y) { //x see y
-	return 4 - getRelative(x, y);
+	return (4 - getRelative(x, y)) % 4;
+}
+
+function changeToRelative(cmd) {
+	var result = new Array();
+	for (var i = 0; i < 4; i++) {
+		var state = JSON.parse(JSON.stringify(cmd));
+		state.actor = getRelative(i, cmd.actor);
+		state.target = getRelative(i, cmd.target);
+		result.push(state);
+	}
+	return result;
 }
 
 function decode(x) {
@@ -30,8 +41,10 @@ function decode(x) {
 
 function translate(result) {
 	for (var i = 0; i < result.yakuType.length; i++)
-		if (translations[result.yakuType[i][0]])
+		if (translations[result.yakuType[i][0]]){
+				result.yakuType[i].push(translations[result.yakuType[i][0]][0]);
 			result.yakuType[i][0] = translations[result.yakuType[i][0]][2];
+		}
 	result.limitName = translations[result.limitName][2];
 }
 
@@ -143,7 +156,7 @@ function JMJTilePool(tile_size) {
 		this.pool.push(i);
 	//debugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebug
 	//this.pool.shuffle();
-	//debugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebug*/
+	//debugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebugdebug
 }
 
 JMJTilePool.prototype.getTile = function() {
@@ -182,7 +195,6 @@ JMJProtocal - for server to client and client to server communication
 function JMJProtocal() {
 	this.type = "";
 }
-
 
 /*
 JMJTable - the top module of JMJ
@@ -234,6 +246,7 @@ JMJTable.prototype.initGame = function() {
 		state.wind = this.wind;
 		state.ownWind = getRelativeWind(i, this.dealer_player);
 		state.dora = this.doras[0];
+		state.point = this.players[i].point;
 
 		state.hand = this.players[i].hand.undecoded_hand.slice();
 		state.hand.sort(cmp);
@@ -271,6 +284,8 @@ JMJTable.prototype.exec = function(command) {
 		this.kan(cmd);
 	} else if (cmd.type == "ckan") {
 		return this.ckan(cmd);
+	} else if (cmd.type == "ron") {
+		return this.ron(cmd);
 	}
 };
 
@@ -280,6 +295,19 @@ dahai
 JMJTable.prototype.dahai = function(cmd) {
 	this.players[cmd.actor].discardTile(cmd.pai); //discade tile
 	this.players[cmd.actor].dahai.push(cmd.pai); //add to dahai
+
+	var result = new Array();
+
+	for (var i = 0; i < 4; i++) {
+		var state = new JMJProtocal();
+		state.type = this.current_state;
+		state.pai = cmd.pai;
+		state.actor = getRelative(i, cmd.actor);
+
+		result.push(state);
+	}
+
+	return result;
 };
 
 /*
@@ -288,7 +316,7 @@ tsumo
 JMJTable.prototype.tsumo = function(cmd) {
 	var pai = this.getTile();
 	this.players[cmd.actor].addTile(pai);
-	
+
 	var result = new Array();
 
 	for (var i = 0; i < 4; i++) {
@@ -314,6 +342,8 @@ JMJTable.prototype.chi = function(cmd) {
 
 	var cards = cmd.consumed.concat([cmd.pai]); //join the meld
 	this.players[cmd.actor].hand.addMeld(CHII, cards); // add meld to hand
+
+	return changeToRelative(cmd);
 };
 
 /*
@@ -328,6 +358,8 @@ JMJTable.prototype.pon = function(cmd) {
 
 	var cards = cmd.consumed.concat([cmd.pai]); //join the meld
 	this.players[cmd.actor].hand.addMeld(PON, cards); // add meld to hand
+
+	return changeToRelative(cmd);
 };
 
 /*
@@ -342,6 +374,8 @@ JMJTable.prototype.kan = function(cmd) {
 
 	var cards = cmd.consumed.concat([cmd.pai]); //join the meld
 	this.players[cmd.actor].hand.addMeld(KAN, cards); // add meld to hand
+
+	return changeToRelative(cmd);
 };
 
 /*
@@ -356,8 +390,82 @@ JMJTable.prototype.ckan = function(cmd) {
 
 	var cards = cmd.consumed.concat([cmd.pai]); //join the meld
 	this.players[cmd.actor].hand.addMeld(CKAN, cards); // add meld to hand
+
+	return changeToRelative(cmd);
 };
 
+/*
+ron
+*/
+JMJTable.prototype.ron = function(cmd) {
+	var hand = this.players[cmd.actor].hand;
+	this.players[cmd.actor].addTile(cmd.pai);
+	this.setHandProperty(hand.hand, cmd);
+
+	return this.ronJudgeResult(hand, cmd);
+};
+
+JMJTable.prototype.setHandProperty = function(hand, cmd) {
+	hand.ron = cmd.actor != cmd.target;
+	hand.riichi = 1;
+	hand.rinjan = 0;
+	hand.ippatsu = 1;
+	hand.haidei = 0;
+	hand.chankan = 0;
+	hand.houdei = 0;
+	hand.dabururiichi = 0;
+	hand.dealer = cmd.actor == this.dealer_player;
+};
+
+JMJTable.prototype.ronJudgeResult = function(hand, cmd) {
+	var judgeResult = hand.judge();
+	var basicPoint = judgeResult.point;
+
+	var delta = [0, 0, 0, 0];
+	var points = new Array();
+
+	if (cmd.actor == cmd.target) { // tsumo
+		for (var i = 0; i < 4; i++) {
+			if (cmd.actor == this.dealer_player || i == this.dealer_player) {
+				point = roundToHundred(basicPoint * 2);
+			} else {
+				point = roundToHundred(basicPoint * 1);
+			}
+			delta[cmd.actor] += point;
+			delta[i] -= point;
+		}
+	} else { // ron
+		var point;
+		if (cmd.actor == this.dealer_player || cmd.target == this.dealer_player) {
+			point = roundToHundred(basicPoint * 6);
+		} else {
+			point = roundToHundred(basicPoint * 4);
+		}
+		delta[cmd.actor] += point;
+		delta[cmd.target] -= point;
+	}
+
+	for (var i = 0; i < 4; i++) {
+		this.players[i].point += delta[i];
+		points.push(this.players[i].point)
+	}
+
+	var result = new Array();
+	for (var i = 0; i < 4; i++) {
+		var state = new JMJProtocal();
+		state.type = "ronResult";
+		state.result = judgeResult;
+		state.points = new Array(4);
+		state.deltas = new Array(4);
+		for (var j = 0; j < 4; j++) {
+			state.points[getRelative(i, j)] = points[j];
+			state.deltas[getRelative(i, j)] = delta[j];
+		}
+		result.push(state);
+	}
+
+	return result;
+};
 /*
 http://gimite.net/mjai/samples/sample.mjson.html
 please forword this
